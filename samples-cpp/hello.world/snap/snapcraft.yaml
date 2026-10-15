@@ -44,3 +44,22 @@ parts:
   helloworld:
     plugin: dump
     source: ./generated/build
+
+  # dumps files from the project into the snap 
+  copymyfiles:
+    plugin: dump
+    source: ./myFiles
+    organize: 
+      '*': ./myFiles/
+
+# grants snap access to active configuration (appdata) storage
+plugs:
+  active-solution:
+    interface: content
+    content: solutions
+    target: $SNAP_COMMON/solutions
+
+# enables the hook to get access to plug
+hooks:
+  connect-plug-active-solution:
+    plugs: [active-solution]

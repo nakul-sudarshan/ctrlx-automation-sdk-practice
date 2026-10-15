@@ -1,0 +1,3 @@
+#!/bin/bash 
+mkdir -p "$SNAP_COMMON/solutions/activeConfiguration/myFiles/" 
+cp $SNAP/myFiles/* "$SNAP_COMMON/solutions/activeConfiguration/myFiles"

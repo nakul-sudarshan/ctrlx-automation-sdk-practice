@@ -1,0 +1,13 @@
+#!/bin/sh
+set -eu
+
+CONFIG_ROOT="$SNAP_COMMON/solutions/activeConfiguration"
+MYDIR="$CONFIG_ROOT/exercise1"
+
+if [ ! -d "$CONFIG_ROOT" ]; then
+    echo "Active configuration directory is unavailable: $CONFIG_ROOT" >&2
+    exit 1
+fi
+
+mkdir -p "$MYDIR"
+echo "Configuration directory ready: $MYDIR"

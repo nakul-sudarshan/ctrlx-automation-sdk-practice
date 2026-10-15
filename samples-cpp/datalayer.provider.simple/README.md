@@ -10,6 +10,14 @@ It demonstrates how you can create __ctrlX Data Layer__ nodes with different dat
 These nodes can be accessed by any __ctrlX Data Layer__ client app.
 The metadata of the nodes are provides by a metadata database.
 
+The read-only `sdk/cpp/datalayer/provider/simple/sqrt` node exposes a `float32`
+square-root result. The app generates a random input from `0.00` to `10000.00`
+(inclusive, in steps of `0.01`) at startup and approximately every second while
+connected. Each input and its square root are logged, without requiring a client
+request. Reading the node returns the latest result and requires no input argument;
+it does not trigger another calculation. Results range from `0.0` to `100.0`.
+The square-root node supplies its metadata programmatically.
+
 ## Implementation Description
 
 All actions are implemented in main.cpp:

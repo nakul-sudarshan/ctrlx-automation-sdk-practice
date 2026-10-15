@@ -8,10 +8,16 @@
 #include <filesystem>
 #include <csignal>
 #include <thread>
+#include <cmath>
+#include <atomic>
+#include <iomanip>
+#include <random>
+#include <sstream>
 
 #include "comm/datalayer/datalayer.h"
 #include "comm/datalayer/datalayer_system.h"
 #include "comm/datalayer/metadata_generated.h"
+#include "comm/datalayer/metadata_helper.h"
 
 #include "ctrlx_datalayer_helper.h"
 
@@ -144,6 +150,70 @@ public:
   }
 };
 
+class SquareRootNode : public MyProviderNode
+{
+private:
+  std::mt19937 m_randomEngine{std::random_device{}()};
+  std::uniform_int_distribution<int> m_inputHundredths{0, 1000000};
+  std::atomic<float> m_result{0.0f};
+
+public:
+  SquareRootNode()
+    : MyProviderNode(comm::datalayer::Variant{})
+  {
+    updateRandomValue();
+  }
+
+  void updateRandomValue()
+  {
+    const float input = static_cast<float>(m_inputHundredths(m_randomEngine)) / 100.0f;
+    const float result = std::sqrt(input);
+    m_result.store(result);
+
+    std::ostringstream message;
+    message << "INFO sqrt input=" << std::fixed << std::setprecision(2)
+            << input << " result=" << std::setprecision(6) << result;
+    std::cout << message.str() << std::endl;
+  }
+
+  void onRead(
+    const std::string&,
+    const comm::datalayer::Variant*,
+    const ResponseCallback& callback) override
+  {
+    using namespace comm::datalayer;
+
+    Variant output;
+    const auto result = output.setValue(m_result.load());
+    callback(result, STATUS_FAILED(result) ? nullptr : &output);
+  }
+
+  void onWrite(
+    const std::string&,
+    const comm::datalayer::Variant*,
+    const ResponseCallback& callback) override
+  {
+    callback(comm::datalayer::DlResult::DL_UNSUPPORTED, nullptr);
+  }
+
+  void onMetadata(
+    const std::string&,
+    const ResponseCallback& callback) override
+  {
+    using namespace comm::datalayer;
+
+    Variant metadata;
+    MetadataHelper::createMetadata(
+      metadata,
+      NodeClass_Variable,
+      true, false, false, false, false,
+      {{"readType", "types/datalayer/float32"}},
+      "Latest square root of a random float32 from 0.00 to 10000.00, updated every second.");
+
+    callback(DlResult::DL_OK, &metadata);
+  }
+};
+
 int main()
 {
 
@@ -172,6 +242,24 @@ int main()
   if (provider == nullptr)
   {
     std::cout << "ERROR Getting provider connection failed." << std::endl;
+    datalayerSystem.stop(false);
+    return 1;
+  }
+
+  SquareRootNode squareRootNode;
+  const std::string squareRootPath = dlBasePath + "sqrt";
+  
+  const auto squareRootResult =
+    provider->registerNode(squareRootPath, &squareRootNode);
+  
+  if (STATUS_FAILED(squareRootResult))
+  {
+    std::cerr << "ERROR Registering " << squareRootPath
+              << " failed: " << squareRootResult.toString()
+              << std::endl;
+  
+    provider->stop();
+    delete provider;
     datalayerSystem.stop(false);
     return 1;
   }
@@ -261,6 +349,10 @@ int main()
     }
 
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    if (!g_endProcess && provider->isConnected())
+    {
+      squareRootNode.updateRandomValue();
+    }
   }
 
   std::cout << "INFO Exiting application" << std::endl;
@@ -275,6 +367,7 @@ int main()
   provider->unregisterNode(dlBasePath + "myFloat");
   provider->unregisterNode(dlBasePath + "myInt64");
   provider->unregisterNode(dlBasePath + "myFlatbuffer");
+  provider->unregisterNode(squareRootPath);
 
   // Clean up datalayer instances so that process ends properly
   provider->stop();

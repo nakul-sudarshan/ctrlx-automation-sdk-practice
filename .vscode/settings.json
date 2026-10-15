@@ -1,5 +1,6 @@
 {
     "cSpell.words": [
         "snapcraft"
-    ]
+    ],
+    "cmake.sourceDirectory": "/home/sun1mfd/ctrlx-automation-sdk/cmake"
 }

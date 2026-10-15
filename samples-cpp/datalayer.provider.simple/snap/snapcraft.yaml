@@ -17,7 +17,7 @@ website: https://github.com/boschrexroth/ctrlx-automation-sdk
 
 summary: Sample app in cpp to register a ctrlX Data Layer branch with several nodes
 description: |
-  This app will create a ctrlX Data Layer branch 'sdk/cpp/datalayer/provider/simple/' with nodes of different data types.
+    Creates a ctrlX Data Layer branch 'sdk/cpp/datalayer/provider/simple/' with nodes of different data types. Generates a random float from 0.00 to 10000.00 approximately every second, logs its square root, and exposes the latest result through the read-only 'sqrt' node.
 base: core24
 confinement: strict
 

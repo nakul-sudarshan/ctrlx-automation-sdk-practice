@@ -6,6 +6,13 @@
 
 #include <stdio.h>
 #include <iostream>
+#include <cstdlib>
+#include <filesystem>
+#include <fstream>
+#include <iomanip>
+#include <system_error>
+#include <deque>
+#include <string>
 
 #include "comm/datalayer/datalayer.h"
 #include "comm/datalayer/datalayer_system.h"
@@ -51,6 +58,112 @@ static std::string getConnectionString(
   return connectionString + std::string("?sslport=") + std::to_string(sslPort);
 }
 
+static bool writeCpuUsage(double cpuUsage)
+{
+  const char *snapCommon = std::getenv("SNAP_COMMON");
+  if (snapCommon == nullptr || snapCommon[0] == '\0')
+  {
+    std::cerr << "ERROR SNAP_COMMON is not set; cannot write CPU usage"
+              << std::endl;
+    return false;
+  }
+
+  const auto configRoot =
+      std::filesystem::path(snapCommon) / "solutions" / "activeConfiguration";
+
+  std::error_code error;
+  if (!std::filesystem::is_directory(configRoot, error))
+  {
+    std::cerr << "ERROR Active configuration is unavailable: " << configRoot;
+    if (error)
+    {
+      std::cerr << ": " << error.message();
+    }
+    std::cerr << std::endl;
+    return false;
+  }
+
+  const auto outputDirectory = configRoot / "exercise1";
+  std::filesystem::create_directories(outputDirectory, error);
+  if (error)
+  {
+    std::cerr << "ERROR Cannot create " << outputDirectory
+              << ": " << error.message() << std::endl;
+    return false;
+  }
+
+  constexpr std::size_t maxEntries = 150;
+  const auto outputPath = outputDirectory / "cpu_usage.txt";
+  const auto temporaryPath = outputDirectory / "cpu_usage.txt.tmp";
+
+  std::deque<std::string> entries;
+
+  const bool fileExists = std::filesystem::exists(outputPath, error);
+  if (error)
+  {
+    std::cerr << "ERROR Cannot check " << outputPath
+              << ": " << error.message() << std::endl;
+    return false;
+  }
+
+  if (fileExists)
+  {
+    std::ifstream input(outputPath);
+    if (!input.is_open())
+    {
+      std::cerr << "ERROR Cannot read " << outputPath << std::endl;
+      return false;
+    }
+
+    std::string line;
+    while (std::getline(input, line))
+    {
+      entries.push_back(line);
+      if (entries.size() >= maxEntries)
+      {
+        entries.pop_front();
+      }
+    }
+
+    if (input.bad() || !input.eof())
+    {
+      std::cerr << "ERROR Reading " << outputPath << std::endl;
+      return false;
+    }
+  }
+
+  std::ofstream output(temporaryPath, std::ios::out | std::ios::trunc);
+  if (!output.is_open())
+  {
+    std::cerr << "ERROR Cannot open " << temporaryPath << std::endl;
+    return false;
+  }
+
+  for (const auto &entry : entries)
+  {
+    output << entry << '\n';
+  }
+
+  output << std::fixed << std::setprecision(2) << cpuUsage << '\n';
+  output.close();
+
+  if (!output)
+  {
+    std::cerr << "ERROR Cannot write or close " << temporaryPath << std::endl;
+    return false;
+  }
+
+  std::filesystem::rename(temporaryPath, outputPath, error);
+  if (error)
+  {
+    std::cerr << "ERROR Cannot replace " << outputPath
+              << ": " << error.message() << std::endl;
+    return false;
+  }
+
+  return true;
+}
+
 // The enry point of the snap.
 // Runs an endless loop until stopped or ctrlX Data Layer clientconnection breaks.
 int main()
@@ -72,7 +185,7 @@ int main()
     auto connectionString2 = getConnectionString("10.0.2.2", "boschrexroth", "boschrexroth", 8443); // ctrlX COREvirtual with Port Forwarding
     std::cout << "WARNING Cannot connect to " << connectionString << " trying " << connectionString2 << std::endl;
 
-    auto dataLayerClient = datalayerSystem.factory()->createClient3(connectionString2);
+    dataLayerClient = datalayerSystem.factory()->createClient3(connectionString2);
   }
 
   int counter = 1;
@@ -93,7 +206,15 @@ int main()
     {
       if (cpuUtilisationPercentValue.getType() == comm::datalayer::VariantType::FLOAT64)
       {
-        std::cout << "INFO Value of " << cpuUtilisationPercentAddress << ": " << double(cpuUtilisationPercentValue) << " %" << std::endl;
+        const double cpuUsage = double(cpuUtilisationPercentValue);
+      
+        std::cout << "INFO Value of " << cpuUtilisationPercentAddress
+                  << ": " << cpuUsage << " %" << std::endl;
+      
+        if (writeCpuUsage(cpuUsage))
+        {
+          std::cout << "INFO CPU usage file updated" << std::endl;
+        }
       }
       else
       {

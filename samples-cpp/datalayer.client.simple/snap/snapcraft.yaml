@@ -29,12 +29,23 @@ platforms:
 
 # define how apps & services are exposed to host system
 apps:
+  # app:
+  #   command: datalayerClientSimple
+  #   # interfaces to connect to https://snapcraft.io/docs/supported-interfaces
+  #   plugs:
+  #     - network
+  #     - datalayer
+  #     - active-solution
+  #   daemon: simple
+  #   passthrough:
+  #     restart-condition: always
+  #     restart-delay: 10s
   app:
-    command: datalayerClientSimple
-    # interfaces to connect to https://snapcraft.io/docs/supported-interfaces
+    command: bin/start.sh
     plugs:
       - network
       - datalayer
+      - active-solution
     daemon: simple
     passthrough:
       restart-condition: always
@@ -47,12 +58,27 @@ parts:
     stage-packages:
       - ctrlx-datalayer
 
+  startup:
+    plugin: dump
+    source: ./scripts
+    organize:
+      start.sh: bin/start.sh
+
 # describes which interface slots are supported by defining the plugs
 plugs:
   datalayer:
     interface: content
     content: datalayer
     target: $SNAP_DATA/.datalayer
+  active-solution:
+    interface: content
+    content: solutions
+    target: $SNAP_COMMON/solutions
+
+# enables the hook to get access to plug
+hooks:
+  connect-plug-active-solution:
+    plugs: [active-solution]
 
 lint:
   ignore:

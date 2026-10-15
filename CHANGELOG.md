@@ -10,6 +10,7 @@
 
 #### CHANGED
 
++ C++ Data Layer Provider Simple generates random inputs from 0.00 to 10000.00 every second, logs their square roots, and exposes the latest result through a read-only `sqrt` node.
 + [Changes](https://github.com/boschrexroth/ctrlx-automation-sdk/compare/3.6.0...4.6.0)
 
 ### 4.4.0
